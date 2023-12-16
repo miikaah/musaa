@@ -56,7 +56,7 @@ const allowListForFiles = ["manifest.json"];
 
 app.use("/(.*)", async (req: Request<{ id: string }>, res) => {
   if (req.originalUrl === "/login") {
-    const password = req.headers.authorization?.split("Secret ").pop() ?? "";
+    const password = req.headers.authorization?.split("Secret%20").pop() ?? "";
     res.cookie("musaPassword", password, { httpOnly: true });
     res.status(200).send("Ok");
     return;
@@ -65,7 +65,7 @@ app.use("/(.*)", async (req: Request<{ id: string }>, res) => {
   const isAllowed = allowListForFiles.some((file) => {
     return req.originalUrl.includes(file);
   });
-  const password = req.cookies.musaPassword;
+  const password = decodeURI(req.cookies.musaPassword);
   if (!isAllowed && (!password || password !== PASSWORD)) {
     res.status(401).send(loginHtml);
     return;
