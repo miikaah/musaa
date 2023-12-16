@@ -99,11 +99,9 @@ app.use("/(.*)", async (req: Request<{ id: string }>, res) => {
     proxyRes.pipe(res);
   });
 
-  if (req.method === "POST" || req.method === "PUT") {
-    // Forward the request body to the target endpoint
-    if (req.body) {
-      outgoingRequest.write(body);
-    }
+  // Forward the request body to the target endpoint
+  if (req.body) {
+    outgoingRequest.write(body);
   }
 
   outgoingRequest.on("error", (err) => {
