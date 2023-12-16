@@ -73,7 +73,6 @@ app.use("/(.*)", async (req: Request<{ id: string }>, res) => {
 
   const body = JSON.stringify(req.body);
   const url = `${MUSA_BASE_URL}${req.originalUrl}`;
-  console.log("Calling", req.method, url);
 
   req.url = url;
 
@@ -95,7 +94,6 @@ app.use("/(.*)", async (req: Request<{ id: string }>, res) => {
     res.statusMessage = proxyRes.statusMessage ?? "";
 
     // Pipe the response from the target endpoint to the original response
-    console.log("Got response");
     proxyRes.pipe(res);
   });
 
