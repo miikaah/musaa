@@ -1,6 +1,6 @@
 # Docker
 
-_NOTE_ Tailscale won't start locally in the Docker image on MacOS because it doesn't have /dev/net/tun that Tailscale needs.
+_NOTE:_ Tailscale won't start locally in the Docker image on MacOS because it doesn't have /dev/net/tun that Tailscale needs.
 
 Build the image
 
@@ -14,7 +14,7 @@ Run the image in a container
 docker run -p 4343:3000 -d musaa
 ```
 
-See running docker container
+See running docker containers
 
 ```
 docker ps
