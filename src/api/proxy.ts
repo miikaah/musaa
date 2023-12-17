@@ -10,12 +10,84 @@ const loginHtml = `
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Musa Login</title>
+    <title>Musa - Login</title>
+    <style>
+      :root {
+        --font-size-md: 18px;
+        --font-size-sm: 16px;
+        --font-size-xs: 14px;
+        --font-size-xxs: 12px;
+        --color-white: #fbfbfb;
+        --color-black: #000;
+      }
+
+      html {
+        overflow: hidden;
+        color: var(--color-white);
+        background: rgb(33, 37, 43);
+      }
+      
+      * {
+        box-sizing: border-box;
+      }
+      
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: Verdana, Tahoma, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      h1 {
+        margin: 0 0 20px 0;
+      }
+
+      button {
+        color: inherit;
+        background-color: transparent;
+        border: 0;
+        padding: 0;
+        cursor: pointer;
+        font-family: Verdana, Tahoma, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        padding: 12px;
+        border-radius: 3px;
+        font-weight: bold;
+        background-color: rgb(117, 53, 151);
+        color: var(--color-white);
+      }
+
+      input {
+        padding: 10px 30px;
+        font-size: var(--font-size-md);
+      }
+
+      form {
+        display: flex;
+        flex-direction: column;
+        max-width: 420px;
+        margin: 100px auto;
+        justify-content: center;
+        background-color: rgb(33, 115, 126);
+        padding: 40px 40px 50px;
+        border-radius: 6px;
+      }
+
+      form > input {
+        margin-bottom: 8px;
+      }
+
+      form > button {
+        margin-top: 10px;
+      }
+    </style>
   </head>
 
   <body>
     <form action="/login" method="POST">
-      <label for="password">Password:</label>
+      <h1>Musa</h1>
+
+      <input type="text" id="username" name="username" placeholder="Username">
       <input type="password" id="password" name="password" placeholder="Password" required>
 
       <button type="submit">Login</button>
