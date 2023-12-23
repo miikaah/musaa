@@ -51,3 +51,17 @@ Deploy the app
 ```
 fly deploy
 ```
+
+# Local credentials for HTTPS
+
+Generate SSL Certificates
+
+```
+openssl req -x509 -newkey rsa:4096 -keyout keytmp.pem -out cert.pem -days 365
+```
+
+Decrypt key
+
+```
+openssl rsa -in keytmp.pem -out key.pem
+```

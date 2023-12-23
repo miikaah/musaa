@@ -1,10 +1,17 @@
 import { Request } from "express";
 import http from "http";
 import { app } from "../express";
+import * as Crypto from "../cryptography";
 
-const { MUSA_BASE_URL = "", PASSWORD } = process.env;
+const {
+  MUSA_BASE_URL = "",
+  USERNAME,
+  PASSWORD,
+  SALT = "",
+  CIPHER_KEY: key = "",
+} = process.env;
 
-const loginHtml = `
+const loginHtmlTemplate = `
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -84,41 +91,144 @@ const loginHtml = `
   </head>
 
   <body>
-    <form action="/login" method="POST">
+    <form id="loginForm" action="/login" method="POST">
       <h1>Musa</h1>
 
-      <input type="text" id="username" name="username" placeholder="Username">
-      <input type="password" id="password" name="password" placeholder="Password" required>
+      <input type="text" id="username" name="username" placeholder="Username" required>
+      <input type="password" id="pw" placeholder="Password" required>
+      <input type="hidden" id="password" name="password">
+      <input type="hidden" id="salt" name="salt">
 
-      <button type="submit">Login</button>
+      <button type="button" onclick="submitLoginForm()">Login</button>
     </form>
+    <script>
+      async function deriveKeyFromPassword(
+        password,
+        salt,
+      ) {
+        const encoder = new TextEncoder();
+        const passwordBuffer = encoder.encode(password);
+        const saltBuffer = encoder.encode(salt);
+        const iterations = 999666;
+        const keyLength = 32;
+        const hashFunction = "SHA-256";
+
+        const derivedKeyBuffer = await crypto.subtle.deriveKey(
+          {
+            name: "PBKDF2",
+            salt: saltBuffer,
+            iterations,
+            hash: { name: hashFunction },
+          },
+          await crypto.subtle.importKey("raw", passwordBuffer, "PBKDF2", false, [
+            "deriveBits",
+            "deriveKey"
+          ]),
+          { name: "AES-GCM", length: keyLength * 8 },
+          true,
+          ["encrypt", "decrypt"],
+        );
+      
+        const derivedKeyArray = new Uint8Array(
+          await crypto.subtle.exportKey("raw", derivedKeyBuffer),
+        );
+        const derivedKeyHex = Array.from(derivedKeyArray)
+          .map((byte) => byte.toString(16).padStart(2, "0"))
+          .join("");
+      
+        return derivedKeyHex;
+      };
+
+      async function submitLoginForm() {
+        try {
+          const username = document.getElementById('username').value;
+          const password = document.getElementById('pw').value;
+      
+          const salt = "{{SALT}}";
+          const pw = await deriveKeyFromPassword(password, salt);
+      
+          document.getElementById('password').value = pw;
+          document.getElementById('salt').value = salt;
+          
+          document.getElementById('pw').value = "";
+
+          document.getElementById('loginForm').submit();
+        } catch (error) {
+          console.error('Error:', error);
+        }
+      }
+    </script>
   </body>
 </html>
 `;
 
 const allowListForFiles = ["manifest.json", "favicon.ico"];
+const loginHtml = loginHtmlTemplate.replace("{{SALT}}", SALT);
+
+const isUserAllowed = (
+  username: string,
+  salt: string,
+  password: string,
+): boolean => {
+  return Boolean(
+    username &&
+      username === USERNAME &&
+      salt &&
+      password &&
+      Crypto.hashPassword(salt, password) === PASSWORD,
+  );
+};
 
 app.use(
   "/(.*)",
-  async (req: Request<{ id: string }, unknown, { password: string }>, res) => {
-    if (req.originalUrl === "/login") {
-      const password = req.body.password;
+  async (
+    req: Request<
+      { id: string },
+      unknown,
+      { username: string; password: string; salt: string }
+    >,
+    res,
+  ) => {
+    try {
+      if (req.originalUrl === "/login") {
+        const { username, password, salt } = req.body;
 
-      if (!password || password !== PASSWORD) {
-        res.status(401).send(loginHtml);
+        if (!isUserAllowed(username, salt, password)) {
+          res.status(401).send(loginHtml);
+          return;
+        }
+
+        res.cookie("musaUsername", Crypto.encrypt(username, key), {
+          httpOnly: true,
+        });
+        res.cookie("musaPassword", Crypto.encrypt(password, key), {
+          httpOnly: true,
+        });
+        res.status(200).redirect("/");
         return;
       }
+    } catch (error) {
+      console.error("Failed during login", error);
 
-      res.cookie("musaPassword", password, { httpOnly: true });
-      res.status(200).redirect("/");
+      res.status(401).send(loginHtml);
       return;
     }
 
-    const isAllowed = allowListForFiles.some((file) => {
-      return req.originalUrl.includes(file);
-    });
-    const password = req.cookies.musaPassword;
-    if (!isAllowed && (!password || password !== PASSWORD)) {
+    try {
+      const isAllowed = allowListForFiles.some((file) => {
+        return req.originalUrl.includes(file);
+      });
+      const { musaUsername, musaPassword } = req.cookies;
+      const username = musaUsername && Crypto.decrypt(musaUsername, key);
+      const password = musaPassword && Crypto.decrypt(musaPassword, key);
+
+      if (!isAllowed && !isUserAllowed(username, SALT, password)) {
+        res.status(401).send(loginHtml);
+        return;
+      }
+    } catch (error) {
+      console.error("Failed during authorization", error);
+
       res.status(401).send(loginHtml);
       return;
     }

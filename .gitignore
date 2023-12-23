@@ -30,3 +30,6 @@ yarn-error.log*
 dist
 esbuild
 
+# certs
+credentials
+
