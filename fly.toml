@@ -1,8 +1,3 @@
-# fly.toml app configuration file generated for musa on 2023-12-16T20:55:06+02:00
-#
-# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
-#
-
 app = "musa"
 primary_region = "arn"
 

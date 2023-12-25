@@ -214,13 +214,14 @@ app.use(
       return;
     }
 
+    const { musaUsername, musaPassword } = req.cookies;
+    const username = musaUsername && Crypto.decrypt(musaUsername, key);
+    const password = musaPassword && Crypto.decrypt(musaPassword, key);
+
     try {
       const isAllowed = allowListForFiles.some((file) => {
         return req.originalUrl.includes(file);
       });
-      const { musaUsername, musaPassword } = req.cookies;
-      const username = musaUsername && Crypto.decrypt(musaUsername, key);
-      const password = musaPassword && Crypto.decrypt(musaPassword, key);
 
       if (!isAllowed && !isUserAllowed(username, SALT, password)) {
         res.status(401).send(loginHtml);
@@ -242,7 +243,7 @@ app.use(
       headers: {
         ...req.headers,
         "content-length": req.body ? Buffer.byteLength(body) : 0,
-        "x-musa-proxy": "yes",
+        "x-musa-proxy-username": username ?? "",
       },
     };
 
