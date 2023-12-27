@@ -1,6 +1,8 @@
 import crypto from "crypto";
 
-export function encrypt(text: string, key: string): string {
+const { CIPHER_KEY: key = "" } = process.env;
+
+export function encrypt(text: string): string {
   const cipher = crypto.createCipheriv("aes-256-cbc", key, Buffer.alloc(16));
   let encrypted = cipher.update(text, "utf-8", "base64");
   encrypted += cipher.final("base64");
@@ -8,7 +10,7 @@ export function encrypt(text: string, key: string): string {
   return encrypted;
 }
 
-export function decrypt(encrypted: string, key: string): string {
+export function decrypt(encrypted: string): string {
   const decipher = crypto.createDecipheriv(
     "aes-256-cbc",
     key,

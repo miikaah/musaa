@@ -17,6 +17,7 @@ RUN apk update && apk add ca-certificates iptables ip6tables && rm -rf /var/cach
 COPY --from=builder /app/start.sh /app/start.sh
 COPY --from=builder /app/.env /app/.env
 COPY --from=builder /app/dist /app/dist
+COPY --from=builder /app/users.json /app/dist/users.json
 
 # Copy Tailscale binaries from the tailscale image on Docker Hub.
 COPY --from=docker.io/tailscale/tailscale:stable /usr/local/bin/tailscaled /app/tailscaled

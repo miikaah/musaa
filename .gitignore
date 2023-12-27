@@ -33,3 +33,5 @@ esbuild
 # certs
 credentials
 
+# users db
+users.json

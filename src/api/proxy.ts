@@ -1,15 +1,13 @@
-import { Request } from "express";
+import { Request, Response } from "express";
+import fs from "fs";
 import http from "http";
+import path from "path";
+import { TokenExpiredError } from "jsonwebtoken";
 import { app } from "../express";
 import * as Crypto from "../cryptography";
+import * as Jwt from "../jwt";
 
-const {
-  MUSA_BASE_URL = "",
-  USERNAME,
-  PASSWORD,
-  SALT = "",
-  CIPHER_KEY: key = "",
-} = process.env;
+const { NODE_ENV = "", MUSA_BASE_URL = "", SALT = "" } = process.env;
 
 const loginHtmlTemplate = `
 <!DOCTYPE html>
@@ -97,18 +95,16 @@ const loginHtmlTemplate = `
       <input type="text" id="username" name="username" placeholder="Username" required>
       <input type="password" id="pw" placeholder="Password" required>
       <input type="hidden" id="password" name="password">
-      <input type="hidden" id="salt" name="salt">
 
       <button type="button" onclick="submitLoginForm()">Login</button>
     </form>
     <script>
       async function deriveKeyFromPassword(
         password,
-        salt,
       ) {
         const encoder = new TextEncoder();
         const passwordBuffer = encoder.encode(password);
-        const saltBuffer = encoder.encode(salt);
+        const saltBuffer = encoder.encode("{{SALT}}");
         const iterations = 999666;
         const keyLength = 32;
         const hashFunction = "SHA-256";
@@ -144,12 +140,9 @@ const loginHtmlTemplate = `
           const username = document.getElementById('username').value;
           const password = document.getElementById('pw').value;
       
-          const salt = "{{SALT}}";
-          const pw = await deriveKeyFromPassword(password, salt);
+          const pw = await deriveKeyFromPassword(password);
       
           document.getElementById('password').value = pw;
-          document.getElementById('salt').value = salt;
-          
           document.getElementById('pw').value = "";
 
           document.getElementById('loginForm').submit();
@@ -164,18 +157,43 @@ const loginHtmlTemplate = `
 
 const allowListForFiles = ["manifest.json", "favicon.ico"];
 const loginHtml = loginHtmlTemplate.replace("{{SALT}}", SALT);
+const users: Record<string, { password: string; salt: string }> = JSON.parse(
+  fs.readFileSync(
+    NODE_ENV !== "production"
+      ? "users.json"
+      : path.join(__dirname, "users.json"),
+    "utf-8",
+  ),
+);
 
-const isUserAllowed = (
-  username: string,
-  salt: string,
-  password: string,
-): boolean => {
+const isUserAllowed = (username: string, password: string): boolean => {
+  const user = users[username];
+  if (!user) {
+    return false;
+  }
+
   return Boolean(
-    username &&
-      username === USERNAME &&
-      salt &&
+    user.salt &&
+      user.password &&
       password &&
-      Crypto.hashPassword(salt, password) === PASSWORD,
+      Crypto.hashPassword(user.salt, password) === user.password,
+  );
+};
+
+const storeJwtsToCookies = (res: Response, username: string) => {
+  res.cookie(
+    "musaAccessToken",
+    Crypto.encrypt(Jwt.createAccessToken({ username })),
+    {
+      httpOnly: true,
+    },
+  );
+  res.cookie(
+    "musaRefreshToken",
+    Crypto.encrypt(Jwt.createRefreshToken({ username })),
+    {
+      httpOnly: true,
+    },
   );
 };
 
@@ -189,49 +207,70 @@ app.use(
     >,
     res,
   ) => {
-    try {
-      if (req.originalUrl === "/login") {
-        const { username, password, salt } = req.body;
+    if (req.originalUrl === "/login") {
+      try {
+        const { username, password } = req.body;
 
-        if (!isUserAllowed(username, salt, password)) {
+        if (!isUserAllowed(username, password)) {
           res.status(401).send(loginHtml);
           return;
         }
 
-        res.cookie("musaUsername", Crypto.encrypt(username, key), {
-          httpOnly: true,
-        });
-        res.cookie("musaPassword", Crypto.encrypt(password, key), {
-          httpOnly: true,
-        });
+        storeJwtsToCookies(res, username);
         res.status(200).redirect("/");
         return;
-      }
-    } catch (error) {
-      console.error("Failed during login", error);
+      } catch (error) {
+        console.error("Failed during login", error);
 
-      res.status(401).send(loginHtml);
-      return;
-    }
-
-    const { musaUsername, musaPassword } = req.cookies;
-    const username = musaUsername && Crypto.decrypt(musaUsername, key);
-    const password = musaPassword && Crypto.decrypt(musaPassword, key);
-
-    try {
-      const isAllowed = allowListForFiles.some((file) => {
-        return req.originalUrl.includes(file);
-      });
-
-      if (!isAllowed && !isUserAllowed(username, SALT, password)) {
         res.status(401).send(loginHtml);
         return;
       }
-    } catch (error) {
-      console.error("Failed during authorization", error);
+    }
 
-      res.status(401).send(loginHtml);
-      return;
+    const { musaAccessToken, musaRefreshToken } = req.cookies;
+    const accessTokenString =
+      musaAccessToken && Crypto.decrypt(musaAccessToken);
+    const refreshTokenString =
+      musaRefreshToken && Crypto.decrypt(musaRefreshToken);
+
+    let accessToken: Jwt.TokenPayload = { username: "" };
+    let refreshToken: Jwt.TokenPayload = { username: "" };
+
+    const isAllowed = allowListForFiles.some((file) => {
+      return req.originalUrl.includes(file);
+    });
+
+    if (!isAllowed) {
+      if (!musaAccessToken) {
+        res.status(401).send(loginHtml);
+        return;
+      }
+
+      try {
+        accessToken = Jwt.verifyJwtToken(accessTokenString) as Jwt.TokenPayload;
+      } catch (error) {
+        if (error instanceof TokenExpiredError) {
+          // accessToken expired check refreshToken
+          try {
+            refreshToken = Jwt.verifyJwtToken(
+              refreshTokenString,
+            ) as Jwt.TokenPayload;
+
+            console.log("Creating new access and refresh tokens");
+            storeJwtsToCookies(res, refreshToken.username);
+          } catch (error) {
+            console.error("Invalid refresh token", error);
+
+            res.status(401).send(loginHtml);
+            return;
+          }
+        } else {
+          console.error("Invalid access token", error);
+
+          res.status(401).send(loginHtml);
+          return;
+        }
+      }
     }
 
     const body = JSON.stringify(req.body);
@@ -243,7 +282,7 @@ app.use(
       headers: {
         ...req.headers,
         "content-length": req.body ? Buffer.byteLength(body) : 0,
-        "x-musa-proxy-username": username ?? "",
+        "x-musa-proxy-username": accessToken.username ?? "",
       },
     };
 
