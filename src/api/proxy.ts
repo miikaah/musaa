@@ -220,10 +220,13 @@ const outputPsAux = (res?: Response) => {
   });
 };
 
-setInterval(() => {
-  console.log("5 minute interval ps aux");
-  outputPsAux();
-}, 60_000 * 5);
+setInterval(
+  () => {
+    console.log("~6 minute interval ps aux");
+    outputPsAux();
+  },
+  60_000 * 6 + 15_000,
+);
 
 app.use(
   "/(.*)",
