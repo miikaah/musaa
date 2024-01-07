@@ -14,7 +14,10 @@ export const errorHandler = (
     return next();
   }
 
-  if (process.env.NODE_ENV === "production" || process.env.NODE_ENV === "test") {
+  if (
+    process.env.NODE_ENV === "production" ||
+    process.env.NODE_ENV === "test"
+  ) {
     return res.status(500).json({ message: "Internal Server Error" });
   }
 

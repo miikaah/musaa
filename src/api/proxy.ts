@@ -6,6 +6,7 @@ import { TokenExpiredError } from "jsonwebtoken";
 import { app } from "../express";
 import * as Crypto from "../cryptography";
 import * as Jwt from "../jwt";
+import { exec } from "child_process";
 
 const { NODE_ENV = "", MUSA_BASE_URL = "", SALT = "" } = process.env;
 
@@ -197,6 +198,27 @@ const storeJwtsToCookies = (res: Response, username: string) => {
   );
 };
 
+// This is for debugging fly.io cpu usage bug
+const outputPsAux = (res?: Response) => {
+  exec("ps aux", (error, stdout, stderr) => {
+    if (error) {
+      console.error(`Error executing ps command: ${error.message}`);
+      return;
+    }
+
+    if (stderr) {
+      console.error(`ps command stderr: ${stderr}`);
+      return;
+    }
+
+    console.log(`ps command output:\n${stdout}`);
+
+    if (res) {
+      res.status(200).send(stdout);
+    }
+  });
+};
+
 app.use(
   "/(.*)",
   async (
@@ -207,6 +229,12 @@ app.use(
     >,
     res,
   ) => {
+    if (req.originalUrl === "/heartbeat") {
+      console.log("Received heartbeat");
+      outputPsAux(res);
+      return;
+    }
+
     if (req.originalUrl === "/login") {
       try {
         const { username, password } = req.body;
@@ -295,6 +323,14 @@ app.use(
 
       // Pipe the response from the target endpoint to the original response
       proxyRes.pipe(res);
+
+      proxyRes.on("error", (err) => {
+        console.error(`Error during proxyRes: ${err.message}`);
+
+        outputPsAux();
+
+        res.status(500).send("Internal Server Error");
+      });
     });
 
     // Forward the request body to the target endpoint
@@ -305,9 +341,12 @@ app.use(
     outgoingRequest.on("error", (err) => {
       console.error(`Error making proxy request: ${err.message}`);
 
+      outputPsAux();
+
       res.status(500).send("Internal Server Error");
     });
 
+    outputPsAux();
     // End the request to the target endpoint
     outgoingRequest.end();
   },
