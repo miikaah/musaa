@@ -211,13 +211,19 @@ const outputPsAux = (res?: Response) => {
       return;
     }
 
-    console.log(`ps command output:\n${stdout}`);
-
     if (res) {
       res.status(200).send(stdout);
+      return;
     }
+
+    console.log(`ps command output:\n${stdout}`);
   });
 };
+
+setInterval(() => {
+  console.log("5 minute interval ps aux");
+  outputPsAux();
+}, 60_000 * 5);
 
 app.use(
   "/(.*)",
@@ -229,12 +235,6 @@ app.use(
     >,
     res,
   ) => {
-    if (req.originalUrl === "/heartbeat") {
-      console.log("Received heartbeat");
-      outputPsAux(res);
-      return;
-    }
-
     if (req.originalUrl === "/login") {
       try {
         const { username, password } = req.body;
@@ -271,6 +271,12 @@ app.use(
     if (!isAllowed) {
       if (!musaAccessToken) {
         res.status(401).send(loginHtml);
+        return;
+      }
+
+      if (req.originalUrl === "/heartbeat") {
+        console.log("Received heartbeat");
+        outputPsAux(res);
         return;
       }
 
@@ -346,7 +352,6 @@ app.use(
       res.status(500).send("Internal Server Error");
     });
 
-    outputPsAux();
     // End the request to the target endpoint
     outgoingRequest.end();
   },
