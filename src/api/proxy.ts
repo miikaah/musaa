@@ -335,10 +335,9 @@ app.use(
 
       proxyRes.on("error", (err) => {
         console.error(`Error during proxyRes: ${err.message}`);
+        res.status(500).send("Internal Server Error");
 
         outputPsAux();
-
-        res.status(500).send("Internal Server Error");
       });
     });
 
@@ -349,10 +348,9 @@ app.use(
 
     outgoingRequest.on("error", (err) => {
       console.error(`Error making proxy request: ${err.message}`);
+      res.status(500).send("Internal Server Error");
 
       outputPsAux();
-
-      res.status(500).send("Internal Server Error");
     });
 
     // End the request to the target endpoint
