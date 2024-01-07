@@ -277,12 +277,6 @@ app.use(
         return;
       }
 
-      if (req.originalUrl === "/heartbeat") {
-        console.log("Received heartbeat");
-        outputPsAux(res);
-        return;
-      }
-
       try {
         accessToken = Jwt.verifyJwtToken(accessTokenString) as Jwt.TokenPayload;
       } catch (error) {
@@ -308,6 +302,12 @@ app.use(
           return;
         }
       }
+    }
+
+    if (req.originalUrl === "/heartbeat") {
+      console.log("Received heartbeat");
+      outputPsAux(res);
+      return;
     }
 
     const body = JSON.stringify(req.body);
