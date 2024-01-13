@@ -244,13 +244,13 @@ app.use(
       console.log(`Request ${id} closed ${res.statusCode} ${req.originalUrl}`);
     });
 
-    res.addListener("close", () => {
-      console.log(`Response ${id} closed ${res.statusCode} ${req.originalUrl}`);
-    });
+    // res.addListener("close", () => {
+    //   console.log(`Response ${id} closed ${res.statusCode} ${req.originalUrl}`);
+    // });
 
     // Express default timeout is 5 minutes
-    res.setTimeout(30_000, () => {
-      console.log(`Request ${id} timed out ${req.originalUrl}`);
+    res.setTimeout(40_000, () => {
+      // console.log(`Request ${id} timed out ${req.originalUrl}`);
       res.status(408).end();
     });
 
@@ -348,18 +348,20 @@ app.use(
 
       // Express default timeout is 5 minutes
       proxyRes.setTimeout(30_000, () => {
-        console.log(`Proxy Response ${id} timed out ${req.originalUrl}`);
+        // console.log(`Proxy Response ${id} timed out ${req.originalUrl}`);
+        // NOTE: Nuking the request here closes everything correctly
+        outgoingRequest.destroy();
       });
 
-      proxyRes.on("error", (err) => {
-        console.log(`Proxy Response ${id} errored ${err.message}`);
-      });
+      // proxyRes.on("error", (err) => {
+      //   console.log(`Proxy Response ${id} errored ${err.message}`);
+      // });
 
-      proxyRes.on("close", () => {
-        console.log(
-          `Proxy Response ${id} closed ${res.statusCode} ${req.originalUrl}`,
-        );
-      });
+      // proxyRes.on("close", () => {
+      //   console.log(
+      //     `Proxy Response ${id} closed ${res.statusCode} ${req.originalUrl}`,
+      //   );
+      // });
 
       // Pipe the response from the target endpoint to the original response
       proxyRes.pipe(res);
@@ -375,11 +377,11 @@ app.use(
       res.status(500).send("Internal Server Error");
     });
 
-    outgoingRequest.on("close", () => {
-      console.error(
-        `Proxy Request ${id} closed ${res.statusCode} ${req.originalUrl}`,
-      );
-    });
+    // outgoingRequest.on("close", () => {
+    //   console.error(
+    //     `Proxy Request ${id} closed ${res.statusCode} ${req.originalUrl}`,
+    //   );
+    // });
 
     // End the request to the target endpoint
     outgoingRequest.end();
