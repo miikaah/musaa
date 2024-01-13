@@ -7,6 +7,7 @@ import { app } from "../express";
 import * as Crypto from "../cryptography";
 import * as Jwt from "../jwt";
 import { exec } from "child_process";
+import crypto from "crypto";
 
 const { NODE_ENV = "", MUSA_BASE_URL = "", SALT = "" } = process.env;
 
@@ -199,15 +200,15 @@ const storeJwtsToCookies = (res: Response, username: string) => {
 };
 
 // This is for debugging fly.io cpu usage bug
-const outputPsAux = (res?: Response) => {
-  exec("ps aux", (error, stdout, stderr) => {
+const outputCpuUsage = (res?: Response) => {
+  exec("top -b -n 1", (error, stdout, stderr) => {
     if (error) {
-      console.error(`Error executing ps command: ${error.message}`);
+      console.error(`Error executing top command: ${error.message}`);
       return;
     }
 
     if (stderr) {
-      console.error(`ps command stderr: ${stderr}`);
+      console.error(`top command stderr: ${stderr}`);
       return;
     }
 
@@ -216,17 +217,9 @@ const outputPsAux = (res?: Response) => {
       return;
     }
 
-    console.log(`ps command output:\n${stdout}`);
+    console.log(`top command output:\n${stdout}`);
   });
 };
-
-setInterval(
-  () => {
-    console.log("~6 minute interval ps aux");
-    outputPsAux();
-  },
-  60_000 * 6 + 15_000,
-);
 
 app.use(
   "/(.*)",
@@ -238,6 +231,29 @@ app.use(
     >,
     res,
   ) => {
+    const id = getId();
+    console.log(`Request ${id} ${req.method} ${req.originalUrl}`);
+
+    // It's useful to see the range being requested for partial content
+    if (req.headers["range"]) {
+      console.log(`Request ${id}`, req.headers.range);
+    }
+
+    // Close should always be called
+    req.addListener("close", () => {
+      console.log(`Request ${id} closed ${res.statusCode} ${req.originalUrl}`);
+    });
+
+    res.addListener("close", () => {
+      console.log(`Response ${id} closed ${res.statusCode} ${req.originalUrl}`);
+    });
+
+    // Express default timeout is 5 minutes
+    res.setTimeout(30_000, () => {
+      console.log(`Request ${id} timed out ${req.originalUrl}`);
+      res.status(408).end();
+    });
+
     if (req.originalUrl === "/login") {
       try {
         const { username, password } = req.body;
@@ -305,8 +321,7 @@ app.use(
     }
 
     if (req.originalUrl === "/heartbeat") {
-      console.log("Received heartbeat");
-      outputPsAux(res);
+      outputCpuUsage(res);
       return;
     }
 
@@ -320,6 +335,7 @@ app.use(
         ...req.headers,
         "content-length": req.body ? Buffer.byteLength(body) : 0,
         "x-musa-proxy-username": accessToken.username ?? "",
+        "x-musa-proxy-request-id": id,
       },
     };
 
@@ -330,15 +346,23 @@ app.use(
       res.status(proxyRes.statusCode ?? 200);
       res.statusMessage = proxyRes.statusMessage ?? "";
 
-      // Pipe the response from the target endpoint to the original response
-      proxyRes.pipe(res);
+      // Express default timeout is 5 minutes
+      proxyRes.setTimeout(30_000, () => {
+        console.log(`Proxy Response ${id} timed out ${req.originalUrl}`);
+      });
 
       proxyRes.on("error", (err) => {
-        console.error(`Error during proxyRes: ${err.message}`);
-        res.status(500).send("Internal Server Error");
-
-        outputPsAux();
+        console.log(`Proxy Response ${id} errored ${err.message}`);
       });
+
+      proxyRes.on("close", () => {
+        console.log(
+          `Proxy Response ${id} closed ${res.statusCode} ${req.originalUrl}`,
+        );
+      });
+
+      // Pipe the response from the target endpoint to the original response
+      proxyRes.pipe(res);
     });
 
     // Forward the request body to the target endpoint
@@ -347,13 +371,29 @@ app.use(
     }
 
     outgoingRequest.on("error", (err) => {
-      console.error(`Error making proxy request: ${err.message}`);
+      console.error(`Proxy Request ${id} errored ${err.message}`);
       res.status(500).send("Internal Server Error");
+    });
 
-      outputPsAux();
+    outgoingRequest.on("close", () => {
+      console.error(
+        `Proxy Request ${id} closed ${res.statusCode} ${req.originalUrl}`,
+      );
     });
 
     // End the request to the target endpoint
     outgoingRequest.end();
   },
 );
+
+function getId(): string {
+  const randomBuffer = crypto.randomBytes(16);
+  const sha256Hash = crypto.createHash("sha256");
+  sha256Hash.update(randomBuffer);
+
+  const hexHash = sha256Hash.digest("hex");
+  const md5Hash = crypto.createHash("md5");
+  md5Hash.update(hexHash);
+
+  return md5Hash.digest("hex").substring(0, 9);
+}
