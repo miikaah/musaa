@@ -232,17 +232,20 @@ app.use(
     res,
   ) => {
     const id = getId();
-    console.log(`Request ${id} ${req.method} ${req.originalUrl}`);
+    // if (!req.headers["range"]) {
+    //   console.log(`Request ${id} ${req.method} ${req.originalUrl}`);
+    //   // Close should always be called
+    //   req.addListener("close", () => {
+    //     console.log(
+    //       `Request ${id} closed ${res.statusCode} ${req.originalUrl}`,
+    //     );
+    //   });
+    // }
 
-    // It's useful to see the range being requested for partial content
-    if (req.headers["range"]) {
-      console.log(`Request ${id}`, req.headers.range);
-    }
-
-    // Close should always be called
-    req.addListener("close", () => {
-      console.log(`Request ${id} closed ${res.statusCode} ${req.originalUrl}`);
-    });
+    // if (req.headers["range"]) {
+    //   // It's useful to see the range being requested for partial content
+    //   console.log(`Request ${id}`, req.headers.range);
+    // }
 
     // res.addListener("close", () => {
     //   console.log(`Response ${id} closed ${res.statusCode} ${req.originalUrl}`);
