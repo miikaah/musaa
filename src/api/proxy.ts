@@ -377,7 +377,9 @@ app.use(
 
     outgoingRequest.on("error", (err) => {
       console.error(`Proxy Request ${id} errored ${err.message}`);
-      res.status(500).send("Internal Server Error");
+      if (!res.headersSent) {
+        res.status(500).send("Internal Server Error");
+      }
     });
 
     // outgoingRequest.on("close", () => {
