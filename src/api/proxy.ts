@@ -6,7 +6,6 @@ import { TokenExpiredError } from "jsonwebtoken";
 import { app } from "../express";
 import * as Crypto from "../cryptography";
 import * as Jwt from "../jwt";
-import { exec } from "child_process";
 import crypto from "crypto";
 
 const { NODE_ENV = "", MUSA_BASE_URL = "", SALT = "" } = process.env;
@@ -199,28 +198,6 @@ const storeJwtsToCookies = (res: Response, username: string) => {
   );
 };
 
-// This is for debugging fly.io cpu usage bug
-const outputCpuUsage = (res?: Response) => {
-  exec("top -b -n 1", (error, stdout, stderr) => {
-    if (error) {
-      console.error(`Error executing top command: ${error.message}`);
-      return;
-    }
-
-    if (stderr) {
-      console.error(`top command stderr: ${stderr}`);
-      return;
-    }
-
-    if (res) {
-      res.status(200).send(stdout);
-      return;
-    }
-
-    console.log(`top command output:\n${stdout}`);
-  });
-};
-
 app.use(
   "/(.*)",
   async (
@@ -324,7 +301,7 @@ app.use(
     }
 
     if (req.originalUrl === "/heartbeat") {
-      outputCpuUsage(res);
+      res.status(200).send();
       return;
     }
 
@@ -342,7 +319,7 @@ app.use(
       },
     };
 
-    const outgoingRequest = http.request(url, options, (proxyRes) => {
+    const outgoingRequest = http.request(url, options, (incomingMessage) => {
       if (res.headersSent) {
         console.error(
           `Response ${id} already sent. Not proxying so that server doesn't crash.`,
@@ -352,30 +329,34 @@ app.use(
         return;
       }
       // Forward the response headers
-      res.set(proxyRes.headers);
+      res.set(incomingMessage.headers);
       // Forward status code (enables caching for the browser)
-      res.status(proxyRes.statusCode ?? 200);
-      res.statusMessage = proxyRes.statusMessage ?? "";
+      res.status(incomingMessage.statusCode ?? 200);
+      res.statusMessage = incomingMessage.statusMessage ?? "";
 
       // Express default timeout is 5 minutes
-      proxyRes.setTimeout(30_000, () => {
+      incomingMessage.setTimeout(30_000, () => {
         // console.log(`Proxy Response ${id} timed out ${req.originalUrl}`);
         // NOTE: Nuking the request here closes everything correctly
         outgoingRequest.destroy();
       });
 
-      // proxyRes.on("error", (err) => {
+      // incomingMessage.on("error", (err) => {
       //   console.log(`Proxy Response ${id} errored ${err.message}`);
       // });
 
-      // proxyRes.on("close", () => {
+      // incomingMessage.on("close", () => {
       //   console.log(
       //     `Proxy Response ${id} closed ${res.statusCode} ${req.originalUrl}`,
       //   );
       // });
 
+      res.addListener("close", () => {
+        outgoingRequest.destroy();
+      });
+
       // Pipe the response from the target endpoint to the original response
-      proxyRes.pipe(res);
+      incomingMessage.pipe(res);
     });
 
     // Forward the request body to the target endpoint
