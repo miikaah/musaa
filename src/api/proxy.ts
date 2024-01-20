@@ -343,6 +343,14 @@ app.use(
     };
 
     const outgoingRequest = http.request(url, options, (proxyRes) => {
+      if (res.headersSent) {
+        console.error(
+          `Response ${id} already sent. Not proxying so that server doesn't crash.`,
+        );
+        req.destroy();
+        outgoingRequest.destroy();
+        return;
+      }
       // Forward the response headers
       res.set(proxyRes.headers);
       // Forward status code (enables caching for the browser)
