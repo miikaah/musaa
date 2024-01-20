@@ -324,7 +324,6 @@ app.use(
         console.error(
           `Response ${id} already sent. Not proxying so that server doesn't crash.`,
         );
-        req.destroy();
         outgoingRequest.destroy();
         return;
       }
