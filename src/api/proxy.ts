@@ -8,7 +8,12 @@ import * as Crypto from "../cryptography";
 import * as Jwt from "../jwt";
 import crypto from "crypto";
 
-const { NODE_ENV = "", MUSA_BASE_URL = "", SALT = "" } = process.env;
+const {
+  NODE_ENV = "",
+  MUSA_BASE_URL = "",
+  SALT = "",
+  XENIA_PORT = "",
+} = process.env;
 
 const loginHtmlTemplate = `
 <!DOCTYPE html>
@@ -306,7 +311,10 @@ app.use(
     }
 
     const body = JSON.stringify(req.body);
-    const url = `${MUSA_BASE_URL}${req.originalUrl}`;
+    const isXenia = req.originalUrl.startsWith("/xenia");
+    const url = `${MUSA_BASE_URL}${
+      isXenia ? `:${XENIA_PORT}${req.originalUrl}` : req.originalUrl
+    }`;
 
     // Create options for the outgoing request
     const options: http.RequestOptions = {
