@@ -52,6 +52,12 @@ Deploy the app
 fly deploy
 ```
 
+Deploying the app with --local-only flag might work if the remote builder does not respond in time.
+
+```
+fly deploy --local-only
+```
+
 # Local credentials for HTTPS
 
 Generate SSL Certificates
