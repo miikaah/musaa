@@ -27,7 +27,7 @@ export const createAccessToken = (payload: TokenPayload) => {
 
 export const createRefreshToken = (payload: TokenPayload) => {
   const options: jwt.SignOptions = {
-    expiresIn: "14d",
+    expiresIn: "90d",
     issuer,
     audience: issuer,
   };

@@ -21,7 +21,9 @@ const loginHtmlTemplate = `
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>Musa - Login</title>
+
     <style>
       :root {
         --font-size-md: 18px;
@@ -105,6 +107,17 @@ const loginHtmlTemplate = `
       <button type="button" onclick="submitLoginForm()">Login</button>
     </form>
     <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        document
+          .getElementById("loginForm")
+          .addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              submitLoginForm();
+            }
+        });
+      });
+
       async function deriveKeyFromPassword(
         password,
       ) {
@@ -186,6 +199,8 @@ const isUserAllowed = (username: string, password: string): boolean => {
   );
 };
 
+const ninetyDaysInMilliseconds = 90 * 24 * 60 * 60 * 1000;
+
 const storeJwtsToCookies = (res: Response, username: string) => {
   res.cookie(
     "musaAccessToken",
@@ -199,8 +214,24 @@ const storeJwtsToCookies = (res: Response, username: string) => {
     Crypto.encrypt(Jwt.createRefreshToken({ username })),
     {
       httpOnly: true,
+      maxAge: ninetyDaysInMilliseconds,
     },
   );
+};
+
+const sendLoginHtmlWithMaybeRedirectUri = (
+  res: Response,
+  redirectUri: string,
+) => {
+  if (redirectUri === "/") {
+    res.status(401).send(loginHtml);
+  } else {
+    res
+      .status(401)
+      .send(
+        loginHtml.replace(`action="/login"`, `action="/login${redirectUri}"`),
+      );
+  }
 };
 
 app.use(
@@ -239,7 +270,11 @@ app.use(
       res.status(408).end();
     });
 
-    if (req.originalUrl === "/login") {
+    const redirectUri = req.originalUrl.includes("?")
+      ? `/?${req.originalUrl.split("?").pop() ?? ""}`
+      : "/";
+
+    if (req.originalUrl.startsWith("/login")) {
       try {
         const { username, password } = req.body;
 
@@ -249,12 +284,12 @@ app.use(
         }
 
         storeJwtsToCookies(res, username);
-        res.status(200).redirect("/");
+        res.status(200).redirect(redirectUri);
         return;
       } catch (error) {
         console.error("Failed during login", error);
 
-        res.status(401).send(loginHtml);
+        sendLoginHtmlWithMaybeRedirectUri(res, redirectUri);
         return;
       }
     }
@@ -274,8 +309,23 @@ app.use(
 
     if (!isAllowed) {
       if (!musaAccessToken) {
-        res.status(401).send(loginHtml);
-        return;
+        // accessToken missing (session expired?) check refreshToken
+        try {
+          refreshToken = Jwt.verifyJwtToken(
+            refreshTokenString,
+          ) as Jwt.TokenPayload;
+
+          console.log("Refreshing tokens");
+          storeJwtsToCookies(res, refreshToken.username);
+
+          res.status(200).redirect(redirectUri);
+          return;
+        } catch (error) {
+          console.error("Authorization expired", error);
+
+          sendLoginHtmlWithMaybeRedirectUri(res, redirectUri);
+          return;
+        }
       }
 
       try {
@@ -293,13 +343,13 @@ app.use(
           } catch (error) {
             console.error("Invalid refresh token", error);
 
-            res.status(401).send(loginHtml);
+            sendLoginHtmlWithMaybeRedirectUri(res, redirectUri);
             return;
           }
         } else {
           console.error("Invalid access token", error);
 
-          res.status(401).send(loginHtml);
+          sendLoginHtmlWithMaybeRedirectUri(res, redirectUri);
           return;
         }
       }
