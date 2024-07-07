@@ -9,7 +9,7 @@
     "build": "esbuild src/index.ts --bundle --platform=node --target=node22 --outdir=dist",
     "tsc:w": "tsc --watch --noEmit"
   },
-  "author": "",
+  "author": "Miika Henttonen",
   "license": "MIT",
   "dependencies": {
     "body-parser": "2.0.0-beta.2",
