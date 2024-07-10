@@ -1,8 +1,8 @@
+import bodyParser from "body-parser";
 import compression from "compression";
+import cookieParser from "cookie-parser";
 import cors from "cors";
 import express from "express";
-import cookieParser from "cookie-parser";
-import bodyParser from "body-parser";
 
 export const app = express();
 
