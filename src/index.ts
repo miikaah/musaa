@@ -41,7 +41,7 @@ export const start = async () => {
   }
 };
 
-start();
+void start();
 
 process.on("SIGTERM", () => {
   console.log("Received SIGTERM, shutting down gracefully...");
