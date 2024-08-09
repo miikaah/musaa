@@ -266,8 +266,8 @@ app.use(
 
     // Express default timeout is 5 minutes
     res.setTimeout(40_000, () => {
-      // console.log(`Request ${id} timed out ${req.originalUrl}`);
-      res.status(408).end();
+      console.log(`Request ${id} timed out ${req.originalUrl}`);
+      res.status(408).send("Musa timed out");
     });
 
     const redirectUri = req.originalUrl.includes("?")
@@ -424,7 +424,7 @@ app.use(
     outgoingRequest.on("error", (err) => {
       console.error(`Proxy Request ${id} errored ${err.message}`);
       if (!res.headersSent) {
-        res.status(500).send("Internal Server Error");
+        res.status(500).send("Musa Internal Server Error");
       }
     });
 

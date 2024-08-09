@@ -49,13 +49,13 @@ fly launch
 Deploy the app
 
 ```sh
-fly deploy
+npm run deploy
 ```
 
 Deploying the app with --local-only flag might work if the remote builder does not respond in time.
 
 ```sh
-fly deploy --local-only
+npm run deploy:local
 ```
 
 # Local credentials for HTTPS

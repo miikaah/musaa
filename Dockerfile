@@ -1,7 +1,11 @@
 FROM node:alpine as builder
 
+ARG MUSA_GITHUB_PAT
+ENV MUSA_GITHUB_PAT=${MUSA_GITHUB_PAT}
+
 WORKDIR /app
 COPY package*.json ./
+COPY .npmrc ./
 RUN npm i
 
 COPY . ./

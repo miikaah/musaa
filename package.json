@@ -5,6 +5,8 @@
   "main": "index.js",
   "scripts": {
     "dev": "env-cmd -f .env.dev nodemon --watch ./src --ext ts --exec ts-node --transpile-only src/index.ts",
+    "deploy": "env-cmd -f .env fly deploy --build-arg MUSA_GITHUB_PAT=${MUSA_GITHUB_PAT}",
+    "deploy:local": "env-cmd -f .env fly deploy --build-arg MUSA_GITHUB_PAT=${MUSA_GITHUB_PAT} --local-only",
     "start": "env-cmd -f .env node dist/index.js",
     "build": "esbuild src/index.ts --bundle --platform=node --target=node22 --outdir=dist",
     "tsc:w": "tsc --watch --noEmit"
