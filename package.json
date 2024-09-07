@@ -23,7 +23,7 @@
     "jsonwebtoken": "9.0.2"
   },
   "devDependencies": {
-    "@eslint/js": "9.9.1",
+    "@eslint/js": "9.10.0",
     "@miikaah/eslint-config-musa": "0.1.6",
     "@types/compression": "1.7.5",
     "@types/cookie-parser": "1.4.7",
@@ -33,7 +33,7 @@
     "@types/jsonwebtoken": "9.0.6",
     "@types/node": "22.5.4",
     "esbuild": "0.23.1",
-    "eslint": "9.9.1",
+    "eslint": "9.10.0",
     "eslint-config-prettier": "9.1.0",
     "eslint-plugin-prettier": "5.2.1",
     "nodemon": "3.1.4",
