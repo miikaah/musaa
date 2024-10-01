@@ -5,20 +5,22 @@ export const errorHandler = (
   _req: Request,
   res: Response,
   next: NextFunction,
-) => {
+): void => {
   if (process.env.NODE_ENV !== "test") {
     console.error(err);
   }
 
   if (res.headersSent) {
-    return next();
+    next();
+    return;
   }
 
   if (
     process.env.NODE_ENV === "production" ||
     process.env.NODE_ENV === "test"
   ) {
-    return res.status(500).json({ message: "Internal Server Error" });
+    res.status(500).json({ message: "Internal Server Error" });
+    return;
   }
 
   res.status(500).json(err);
