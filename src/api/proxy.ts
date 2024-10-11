@@ -235,7 +235,7 @@ const sendLoginHtmlWithMaybeRedirectUri = (
 };
 
 app.use(
-  "/(.*)",
+  /\/(.*)/,
   async (
     req: Request<
       { id: string },
